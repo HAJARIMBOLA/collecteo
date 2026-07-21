@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Tableau de bord')}"></head>
+<body>
+<div th:replace="~{fragments :: sidebar('dashboard')}"></div>
+
+<main class="content">
+  <h3 class="page-title"><i class="bi bi-speedometer2"></i> Tableau de bord</h3>
+  <div id="errorBox" class="alert alert-danger d-none"></div>
+
+  <div class="row g-3" id="cartesKpi"><!-- rempli en JS --></div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-md-6">
+      <div class="card card-section">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3"><i class="bi bi-graph-up"></i> Rentabilité</h6>
+          <table class="table table-sm mb-0">
+            <tbody id="tableRentabilite"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card card-section">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3"><i class="bi bi-people"></i> Activité</h6>
+          <table class="table table-sm mb-0">
+            <tbody id="tableActivite"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div th:replace="~{fragments :: scripts}"></div>
+<script>
+  requireAuth();
+
+  function ligneKpi(label, valeur, icone, couleur) {
+    return `<div class="col-sm-6 col-lg-3">
+      <div class="card kpi-card">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="fs-3 text-${couleur}"><i class="bi ${icone}"></i></div>
+          <div>
+            <div class="kpi-label">${label}</div>
+            <div class="kpi-value">${valeur}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function ligneTable(label, valeur) {
+    return `<tr><td>${label}</td><td class="text-end fw-semibold">${valeur}</td></tr>`;
+  }
+
+  async function charger() {
+    try {
+      const d = await api("/dashboard");
+
+      document.getElementById("cartesKpi").innerHTML = [
+        ligneKpi("Trésorerie totale", formatMontant(d.tresorerieTotale), "bi-wallet2", "success"),
+        ligneKpi("Bénéfice net", formatMontant(d.beneficeNet), "bi-graph-up-arrow", "primary"),
+        ligneKpi("Valeur du stock", formatMontant(d.valeurStock), "bi-box-seam", "warning"),
+        ligneKpi("Créances clients", formatMontant(d.totalCreances), "bi-arrow-down-left-circle", "info"),
+        ligneKpi("Solde caisse", formatMontant(d.soldeCaisse), "bi-cash-stack", "success"),
+        ligneKpi("Solde banques", formatMontant(d.soldeBanques), "bi-bank", "success"),
+        ligneKpi("Dettes totales", formatMontant(d.totalDettes), "bi-exclamation-circle", "danger"),
+        ligneKpi("Capital restant (prêts)", formatMontant(d.capitalRestantPrets), "bi-graph-down", "danger"),
+      ].join("");
+
+      document.getElementById("tableRentabilite").innerHTML = [
+        ligneTable("Chiffre d'affaires (ventes)", formatMontant(d.chiffreAffairesVentes)),
+        ligneTable("Total achats", formatMontant(d.totalAchats)),
+        ligneTable("Bénéfice brut", formatMontant(d.beneficeBrut)),
+        ligneTable("Total dépenses", formatMontant(d.totalDepenses)),
+        ligneTable("Bénéfice net", "<strong>" + formatMontant(d.beneficeNet) + "</strong>"),
+      ].join("");
+
+      document.getElementById("tableActivite").innerHTML = [
+        ligneTable("Produits référencés", d.nombreProduits),
+        ligneTable("Producteurs", d.nombreProducteurs),
+        ligneTable("Clients", d.nombreClients),
+        ligneTable("Dettes envers producteurs (achats à crédit)", formatMontant(d.totalDettesProducteurs)),
+        ligneTable("Dettes fournisseurs (autres)", formatMontant(d.totalDettesFournisseurs)),
+        ligneTable("Total emprunté / remboursé", formatMontant(d.totalEmprunte) + " / " + formatMontant(d.totalRembourse)),
+      ].join("");
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  charger();
+</script>
+</body>
+</html>

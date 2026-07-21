@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Ventes')}"></head>
+<body>
+<div th:replace="~{fragments :: sidebar('ventes')}"></div>
+
+<main class="content">
+  <h3 class="page-title"><i class="bi bi-cart-check"></i> Ventes</h3>
+  <div id="errorBox" class="alert alert-danger d-none"></div>
+  <div id="successBox" class="alert alert-success d-none"></div>
+
+  <div class="row g-3" id="cartesKpi"></div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-lg-4">
+      <div class="card card-section">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle"></i> Nouvelle vente</h6>
+          <form id="formVente">
+            <div class="mb-2">
+              <label class="form-label">Client *</label>
+              <select class="form-select" id="clientId" required></select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Produit *</label>
+              <select class="form-select" id="produitId" required></select>
+            </div>
+            <div class="row">
+              <div class="col-6 mb-2">
+                <label class="form-label">Quantité *</label>
+                <input type="number" step="0.01" min="0.01" class="form-control" id="quantite" required/>
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label">Prix unitaire *</label>
+                <input type="number" step="0.01" min="0.01" class="form-control" id="prixUnitaire" required/>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Montant payé comptant</label>
+              <input type="number" step="0.01" min="0" class="form-control" id="montantPaye" value="0"/>
+              <small class="text-muted">0 = vente entièrement à crédit.</small>
+            </div>
+            <button type="submit" class="btn btn-collecteo w-100">Enregistrer la vente</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card card-section">
+        <div class="card-body">
+          <table class="table table-hover table-collecteo align-middle">
+            <thead>
+              <tr>
+                <th>Date</th><th>Client</th><th>Produit</th><th class="text-end">Qté</th>
+                <th class="text-end">Total</th><th class="text-end">Restant</th><th>Statut</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="corpsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Modale de paiement -->
+<div class="modal fade" id="modalPaiement" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Enregistrer un paiement</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="formPaiement">
+        <div class="modal-body">
+          <input type="hidden" id="venteIdPaiement"/>
+          <p>Montant restant dû : <strong id="montantRestantAffiche"></strong></p>
+          <label class="form-label">Montant payé *</label>
+          <input type="number" step="0.01" min="0.01" class="form-control" id="montantPaiement" required/>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-collecteo">Valider le paiement</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div th:replace="~{fragments :: scripts}"></div>
+<script>
+  requireAuth();
+  let modalPaiement;
+
+  function rendreLigne(v) {
+    return `<tr>
+      <td>${formatDateSeule(v.dateVente)}</td>
+      <td>${escapeHtml(v.client?.nom || "—")}</td>
+      <td>${escapeHtml(v.produit?.nom || "—")}</td>
+      <td class="text-end">${Number(v.quantite).toLocaleString("fr-FR")}</td>
+      <td class="text-end">${formatMontant(v.montantTotal)}</td>
+      <td class="text-end">${formatMontant(v.montantRestant)}</td>
+      <td>${badgeStatut(v.statut)}</td>
+      <td class="text-end">
+        ${Number(v.montantRestant) > 0
+          ? `<button class="btn btn-sm btn-outline-success" onclick="ouvrirPaiement(${v.id}, ${v.montantRestant})"><i class="bi bi-cash"></i> Payer</button>`
+          : ""}
+      </td>
+    </tr>`;
+  }
+
+  async function chargerListesDeroulantes() {
+    const [clients, produits] = await Promise.all([api("/clients"), api("/produits")]);
+    document.getElementById("clientId").innerHTML = clients.map((c) => `<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join("");
+    document.getElementById("produitId").innerHTML = produits.map((p) => `<option value="${p.id}">${escapeHtml(p.nom)} (${escapeHtml(p.unite)})</option>`).join("");
+  }
+
+  async function charger() {
+    try {
+      clearError();
+      const [liste, totalCreances] = await Promise.all([api("/ventes"), api("/ventes/total-creances")]);
+      const tri = liste.sort((a, b) => new Date(b.dateVente) - new Date(a.dateVente));
+      document.getElementById("corpsTable").innerHTML =
+        tri.length ? tri.map(rendreLigne).join("") : '<tr><td colspan="8" class="text-center text-muted py-3">Aucune vente.</td></tr>';
+
+      document.getElementById("cartesKpi").innerHTML = `
+        <div class="col-sm-6 col-lg-3">
+          <div class="card kpi-card"><div class="card-body">
+            <div class="kpi-label">Nombre de ventes</div><div class="kpi-value">${liste.length}</div>
+          </div></div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="card kpi-card"><div class="card-body">
+            <div class="kpi-label">Total créances clients</div><div class="kpi-value">${formatMontant(totalCreances)}</div>
+          </div></div>
+        </div>`;
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  function ouvrirPaiement(id, montantRestant) {
+    document.getElementById("venteIdPaiement").value = id;
+    document.getElementById("montantRestantAffiche").textContent = formatMontant(montantRestant);
+    document.getElementById("montantPaiement").value = "";
+    document.getElementById("montantPaiement").max = montantRestant;
+    modalPaiement.show();
+  }
+
+  document.getElementById("formVente").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearError();
+    const corps = {
+      clientId: Number(document.getElementById("clientId").value),
+      produitId: Number(document.getElementById("produitId").value),
+      quantite: Number(document.getElementById("quantite").value),
+      prixUnitaire: Number(document.getElementById("prixUnitaire").value),
+      montantPaye: Number(document.getElementById("montantPaye").value || 0),
+    };
+    try {
+      await api("/ventes", { method: "POST", body: JSON.stringify(corps) });
+      showSuccess("Vente enregistrée.");
+      document.getElementById("formVente").reset();
+      document.getElementById("montantPaye").value = 0;
+      charger();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  document.getElementById("formPaiement").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const id = document.getElementById("venteIdPaiement").value;
+    const montant = Number(document.getElementById("montantPaiement").value);
+    try {
+      await api("/ventes/" + id + "/paiement", { method: "POST", body: JSON.stringify({ montant }) });
+      modalPaiement.hide();
+      showSuccess("Paiement enregistré.");
+      charger();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  (async function init() {
+    modalPaiement = new bootstrap.Modal(document.getElementById("modalPaiement"));
+    await chargerListesDeroulantes();
+    await charger();
+  })();
+</script>
+</body>
+</html>

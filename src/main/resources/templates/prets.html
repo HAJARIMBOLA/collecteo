@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Prêts bancaires')}"></head>
+<body>
+<div th:replace="~{fragments :: sidebar('prets')}"></div>
+
+<main class="content">
+  <h3 class="page-title"><i class="bi bi-graph-up-arrow"></i> Prêts bancaires</h3>
+  <div id="errorBox" class="alert alert-danger d-none"></div>
+  <div id="successBox" class="alert alert-success d-none"></div>
+
+  <div class="row g-3" id="cartesKpi"></div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-lg-4">
+      <div class="card card-section">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle"></i> Nouveau prêt</h6>
+          <form id="formPret">
+            <div class="mb-2">
+              <label class="form-label">Compte bancaire *</label>
+              <select class="form-select" id="compteBancaireId" required></select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Montant emprunté *</label>
+              <input type="number" step="0.01" min="0.01" class="form-control" id="montantEmprunte" required/>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Date du prêt *</label>
+              <input type="date" class="form-control" id="datePret" required/>
+            </div>
+            <div class="row">
+              <div class="col-6 mb-2">
+                <label class="form-label">Durée (mois) *</label>
+                <input type="number" min="1" class="form-control" id="dureeMois" required/>
+              </div>
+              <div class="col-6 mb-2">
+                <label class="form-label">Taux annuel (%) *</label>
+                <input type="number" step="0.01" min="0" class="form-control" id="tauxInteret" required/>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-collecteo w-100">Enregistrer le prêt</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card card-section">
+        <div class="card-body">
+          <table class="table table-hover table-collecteo align-middle">
+            <thead>
+              <tr>
+                <th>Date</th><th class="text-end">Emprunté</th><th class="text-end">Mensualité</th>
+                <th class="text-end">Capital restant</th><th>Prochaine échéance</th><th>Statut</th><th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="corpsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-section" id="carteRemboursements" style="display:none">
+    <div class="card-body">
+      <h6 class="fw-bold mb-3">Remboursements <span id="titrePretSelectionne" class="text-muted small"></span></h6>
+      <table class="table table-hover table-collecteo align-middle">
+        <thead><tr><th>Date</th><th class="text-end">Montant</th></tr></thead>
+        <tbody id="corpsRemboursements"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Modale de remboursement -->
+<div class="modal fade" id="modalRemboursement" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Enregistrer un remboursement</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="formRemboursement">
+        <div class="modal-body">
+          <input type="hidden" id="pretIdRemboursement"/>
+          <p>Capital restant : <strong id="capitalRestantAffiche"></strong></p>
+          <label class="form-label">Montant remboursé *</label>
+          <input type="number" step="0.01" min="0.01" class="form-control" id="montantRemboursement" required/>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-collecteo">Valider</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div th:replace="~{fragments :: scripts}"></div>
+<script>
+  requireAuth();
+  let modalRemboursement;
+
+  function rendreLigne(p) {
+    return `<tr>
+      <td>${formatDateSeule(p.datePret)}</td>
+      <td class="text-end">${formatMontant(p.montantEmprunte)}</td>
+      <td class="text-end">${formatMontant(p.mensualite)}</td>
+      <td class="text-end">${formatMontant(p.capitalRestant)}</td>
+      <td>${formatDateSeule(p.prochaineEcheance)}</td>
+      <td>${badgeStatut(p.statut)}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-secondary" onclick="voirRemboursements(${p.id})"><i class="bi bi-list-ul"></i></button>
+        ${Number(p.capitalRestant) > 0
+          ? `<button class="btn btn-sm btn-outline-success" onclick="ouvrirRemboursement(${p.id}, ${p.capitalRestant})"><i class="bi bi-cash"></i> Rembourser</button>`
+          : ""}
+      </td>
+    </tr>`;
+  }
+
+  async function chargerComptes() {
+    const comptes = await api("/banque/comptes");
+    document.getElementById("compteBancaireId").innerHTML =
+      comptes.map((c) => `<option value="${c.id}">${escapeHtml(c.nomBanque)}</option>`).join("");
+  }
+
+  async function charger() {
+    try {
+      clearError();
+      const [liste, resume] = await Promise.all([api("/prets"), api("/prets/resume")]);
+      document.getElementById("corpsTable").innerHTML =
+        liste.length ? liste.map(rendreLigne).join("") : '<tr><td colspan="7" class="text-center text-muted py-3">Aucun prêt.</td></tr>';
+
+      document.getElementById("cartesKpi").innerHTML = `
+        <div class="col-sm-6 col-lg-4">
+          <div class="card kpi-card"><div class="card-body">
+            <div class="kpi-label">Total emprunté</div><div class="kpi-value">${formatMontant(resume.totalEmprunte)}</div>
+          </div></div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+          <div class="card kpi-card"><div class="card-body">
+            <div class="kpi-label">Total remboursé</div><div class="kpi-value">${formatMontant(resume.totalRembourse)}</div>
+          </div></div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+          <div class="card kpi-card"><div class="card-body">
+            <div class="kpi-label">Capital restant</div><div class="kpi-value">${formatMontant(resume.capitalRestant)}</div>
+          </div></div>
+        </div>`;
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  async function voirRemboursements(id) {
+    try {
+      const liste = await api("/prets/" + id + "/remboursements");
+      const tri = liste.sort((a, b) => new Date(b.date) - new Date(a.date));
+      document.getElementById("titrePretSelectionne").textContent = "— prêt #" + id;
+      document.getElementById("corpsRemboursements").innerHTML =
+        tri.length ? tri.map((r) => `<tr><td>${formatDate(r.date)}</td><td class="text-end">${formatMontant(r.montant)}</td></tr>`).join("")
+        : '<tr><td colspan="2" class="text-center text-muted py-3">Aucun remboursement.</td></tr>';
+      document.getElementById("carteRemboursements").style.display = "block";
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  function ouvrirRemboursement(id, capitalRestant) {
+    document.getElementById("pretIdRemboursement").value = id;
+    document.getElementById("capitalRestantAffiche").textContent = formatMontant(capitalRestant);
+    document.getElementById("montantRemboursement").value = "";
+    modalRemboursement.show();
+  }
+
+  document.getElementById("formPret").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearError();
+    const corps = {
+      compteBancaireId: Number(document.getElementById("compteBancaireId").value),
+      montantEmprunte: Number(document.getElementById("montantEmprunte").value),
+      datePret: document.getElementById("datePret").value,
+      dureeMois: Number(document.getElementById("dureeMois").value),
+      tauxInteret: Number(document.getElementById("tauxInteret").value),
+    };
+    try {
+      await api("/prets", { method: "POST", body: JSON.stringify(corps) });
+      showSuccess("Prêt enregistré.");
+      document.getElementById("formPret").reset();
+      charger();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  document.getElementById("formRemboursement").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const id = document.getElementById("pretIdRemboursement").value;
+    const montant = Number(document.getElementById("montantRemboursement").value);
+    try {
+      await api("/prets/" + id + "/remboursement?montant=" + encodeURIComponent(montant), { method: "POST" });
+      modalRemboursement.hide();
+      showSuccess("Remboursement enregistré.");
+      charger();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  (async function init() {
+    modalRemboursement = new bootstrap.Modal(document.getElementById("modalRemboursement"));
+    await chargerComptes();
+    await charger();
+  })();
+</script>
+</body>
+</html>
