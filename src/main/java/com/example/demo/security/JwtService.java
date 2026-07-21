@@ -2,6 +2,8 @@ package com.example.demo.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.function.Function;
 import javax.crypto.SecretKey;
@@ -15,16 +17,34 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class JwtService {
-  // Clé secrète de signature. À surcharger en production via la variable d'environnement JWT_SECRET
-  // (doit faire au moins 32 caractères pour HS256).
-  @Value("${JWT_SECRET:collecteo-secret-key-changeme-en-production-32chars}")
+  private static final int LONGUEUR_MIN_SECRET = 32; // HS256 exige au moins 256 bits
+
+  // Clé secrète de signature. OBLIGATOIRE — aucune valeur par défaut : un secret prévisible
+  // codé en dur permettrait à quiconque lit le code source de forger des tokens JWT valides
+  // pour n'importe quel utilisateur, y compris un administrateur. Voir .env.example.
+  @Value("${JWT_SECRET}")
   private String secret;
 
   @Value("${JWT_EXPIRATION_MS:86400000}") // 24h par défaut
   private long expirationMs;
 
+  /**
+   * Vérifie au démarrage que le secret configuré est assez long pour HS256, plutôt que de découvrir
+   * l'erreur (WeakKeyException, peu explicite) au moment de générer le premier token.
+   */
+  @PostConstruct
+  void validerSecret() {
+    if (secret.getBytes(StandardCharsets.UTF_8).length < LONGUEUR_MIN_SECRET) {
+      throw new IllegalStateException(
+          "JWT_SECRET doit contenir au moins "
+              + LONGUEUR_MIN_SECRET
+              + " caractères (HS256 exige une clé d'au moins 256 bits). "
+              + "Génère-en un avec : openssl rand -base64 32");
+    }
+  }
+
   private SecretKey getSigningKey() {
-    return Keys.hmacShaKeyFor(secret.getBytes());
+    return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
   }
 
   public String genererToken(UserDetails userDetails) {
