@@ -57,7 +57,7 @@ public abstract class BaseFacadeIT extends FacadeIT {
     @Bean
     RestTemplateBuilder restTemplateBuilder() {
       return new RestTemplateBuilder()
-              .requestFactory(() -> new HttpComponentsClientHttpRequestFactory());
+          .requestFactory(() -> new HttpComponentsClientHttpRequestFactory());
     }
   }
 
@@ -76,7 +76,7 @@ public abstract class BaseFacadeIT extends FacadeIT {
     requete.setMotDePasse("admin123");
 
     ResponseEntity<AuthResponse> reponse =
-            restTemplate.postForEntity(baseUrl() + "/auth/login", requete, AuthResponse.class);
+        restTemplate.postForEntity(baseUrl() + "/auth/login", requete, AuthResponse.class);
 
     this.token = reponse.getBody().getToken();
   }
@@ -90,7 +90,7 @@ public abstract class BaseFacadeIT extends FacadeIT {
   }
 
   protected <T> ResponseEntity<T> postAuthentifie(
-          String chemin, Object corps, Class<T> typeReponse) {
+      String chemin, Object corps, Class<T> typeReponse) {
     HttpEntity<Object> requete = new HttpEntity<>(corps, enTetesAuthentifiees());
     return restTemplate.exchange(baseUrl() + chemin, HttpMethod.POST, requete, typeReponse);
   }
