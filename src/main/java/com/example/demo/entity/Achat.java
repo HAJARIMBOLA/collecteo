@@ -29,6 +29,9 @@ public class Achat {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  /** Verrou optimiste : évite que deux paiements simultanés rendent montantRestant incohérent. */
+  @Version private Long version;
+
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "producteur_id", nullable = false)
   private Producteur producteur;

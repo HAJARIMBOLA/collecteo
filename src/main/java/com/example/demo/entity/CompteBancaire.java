@@ -25,6 +25,9 @@ public class CompteBancaire {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  /** Verrou optimiste : évite qu'un solde devienne incohérent en cas de mouvements concurrents. */
+  @Version private Long version;
+
   @NotBlank
   @Column(name = "nom_banque", nullable = false, length = 100)
   private String nomBanque;

@@ -28,6 +28,13 @@ public class Produit {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  /**
+   * Verrou optimiste : Hibernate incrémente cette valeur à chaque mise à jour et rejette toute
+   * écriture basée sur une version obsolète (deux ventes simultanées sur le même produit, par
+   * exemple), plutôt que de laisser le stock devenir incohérent silencieusement.
+   */
+  @Version private Long version;
+
   @NotBlank
   @Column(nullable = false, length = 150)
   private String nom;

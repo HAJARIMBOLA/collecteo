@@ -3,6 +3,7 @@ package com.example.demo.exception;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -29,6 +30,22 @@ public class GlobalExceptionHandler {
   public ResponseEntity<Map<String, Object>> handleBusiness(BusinessException ex) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .body(buildBody(ex.getMessage(), HttpStatus.BAD_REQUEST));
+  }
+
+  /**
+   * Se déclenche quand deux requêtes modifient la même ligne (stock, solde, montant restant) en
+   * même temps grâce au verrou optimiste (@Version sur les entités). 409 Conflict indique au client
+   * que sa requête était valide mais que les données ont changé entre-temps : il doit recharger et
+   * réessayer.
+   */
+  @ExceptionHandler(OptimisticLockingFailureException.class)
+  public ResponseEntity<Map<String, Object>> handleConflit(OptimisticLockingFailureException ex) {
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(
+            buildBody(
+                "Cette ressource a été modifiée entre-temps par une autre requête. "
+                    + "Recharge les données et réessaie.",
+                HttpStatus.CONFLICT));
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
