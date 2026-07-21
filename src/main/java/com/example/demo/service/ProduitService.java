@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.entity.Produit;
+import com.example.demo.exception.BusinessException;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.ProduitRepository;
 import java.math.BigDecimal;
@@ -21,8 +22,8 @@ public class ProduitService {
 
   public Produit trouverParId(Long id) {
     return produitRepository
-        .findById(id)
-        .orElseThrow(() -> new ResourceNotFoundException("Produit introuvable avec l'id " + id));
+            .findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Produit introuvable avec l'id " + id));
   }
 
   public Produit creer(Produit produit) {
@@ -55,27 +56,43 @@ public class ProduitService {
    * (moyenne pondérée mobile).
    */
   public void enregistrerEntreeStock(
-      Produit produit, BigDecimal quantiteAchetee, BigDecimal prixUnitaireAchat) {
+          Produit produit, BigDecimal quantiteAchetee, BigDecimal prixUnitaireAchat) {
     BigDecimal stockActuel = produit.getQuantiteStock();
     BigDecimal valeurStockActuelle = stockActuel.multiply(produit.getPrixMoyenAchat());
     BigDecimal valeurNouvelleEntree = quantiteAchetee.multiply(prixUnitaireAchat);
 
     BigDecimal nouveauStock = stockActuel.add(quantiteAchetee);
     BigDecimal nouveauPrixMoyen =
-        nouveauStock.compareTo(BigDecimal.ZERO) > 0
-            ? valeurStockActuelle
-                .add(valeurNouvelleEntree)
-                .divide(nouveauStock, 2, java.math.RoundingMode.HALF_UP)
-            : BigDecimal.ZERO;
+            nouveauStock.compareTo(BigDecimal.ZERO) > 0
+                    ? valeurStockActuelle
+                    .add(valeurNouvelleEntree)
+                    .divide(nouveauStock, 2, java.math.RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
 
     produit.setQuantiteStock(nouveauStock);
     produit.setPrixMoyenAchat(nouveauPrixMoyen);
     produitRepository.save(produit);
   }
 
-  /** Diminue le stock après une vente et met à jour le dernier prix moyen de vente. */
+  /**
+   * Diminue le stock après une vente et met à jour le dernier prix moyen de vente. Vérifie ici
+   * même que le stock est suffisant (et pas seulement dans VenteService qui appelle cette
+   * méthode), pour qu'un futur appelant ne puisse jamais faire passer le stock en négatif en
+   * oubliant ce contrôle en amont.
+   */
   public void enregistrerSortieStock(
-      Produit produit, BigDecimal quantiteVendue, BigDecimal prixUnitaireVente) {
+          Produit produit, BigDecimal quantiteVendue, BigDecimal prixUnitaireVente) {
+    if (produit.getQuantiteStock().compareTo(quantiteVendue) < 0) {
+      throw new BusinessException(
+              "Stock insuffisant pour "
+                      + produit.getNom()
+                      + " (disponible : "
+                      + produit.getQuantiteStock()
+                      + " "
+                      + produit.getUnite()
+                      + ")");
+    }
+
     produit.setQuantiteStock(produit.getQuantiteStock().subtract(quantiteVendue));
     produit.setPrixMoyenVente(prixUnitaireVente);
     produitRepository.save(produit);
