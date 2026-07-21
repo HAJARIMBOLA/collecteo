@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Utilisateurs')}"></head>
+<body>
+<div th:replace="~{fragments :: sidebar('utilisateurs')}"></div>
+
+<main class="content">
+  <h3 class="page-title"><i class="bi bi-shield-lock"></i> Utilisateurs</h3>
+  <p class="text-muted">Réservé aux administrateurs.</p>
+  <div id="errorBox" class="alert alert-danger d-none"></div>
+  <div id="successBox" class="alert alert-success d-none"></div>
+
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card card-section">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle"></i> Nouvel utilisateur</h6>
+          <form id="formUtilisateur">
+            <div class="mb-2">
+              <label class="form-label">Nom complet *</label>
+              <input type="text" class="form-control" id="nom" required/>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Nom d'utilisateur *</label>
+              <input type="text" class="form-control" id="nomUtilisateur" required/>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Mot de passe * (6 caractères min.)</label>
+              <input type="password" class="form-control" id="motDePasse" minlength="6" required/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Rôle *</label>
+              <select class="form-select" id="role" required>
+                <option value="ADMINISTRATEUR">Administrateur</option>
+                <option value="COLLECTEUR">Collecteur</option>
+                <option value="COMPTABLE">Comptable</option>
+                <option value="CAISSIER">Caissier</option>
+                <option value="RESPONSABLE">Responsable</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-collecteo w-100">Créer</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card card-section">
+        <div class="card-body">
+          <table class="table table-hover table-collecteo align-middle">
+            <thead>
+              <tr><th>Nom</th><th>Identifiant</th><th>Rôle</th><th>Statut</th><th>Depuis le</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody id="corpsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div th:replace="~{fragments :: scripts}"></div>
+<script>
+  requireAuth();
+
+  function rendreLigne(u) {
+    return `<tr>
+      <td>${escapeHtml(u.nom)}</td>
+      <td>${escapeHtml(u.nomUtilisateur)}</td>
+      <td><span class="badge text-bg-secondary">${escapeHtml(u.role)}</span></td>
+      <td>${u.actif ? '<span class="badge text-bg-success">Actif</span>' : '<span class="badge text-bg-danger">Inactif</span>'}</td>
+      <td>${formatDateSeule(u.dateCreation)}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-secondary" onclick="changerStatut(${u.id}, ${!u.actif})">
+          ${u.actif ? "Désactiver" : "Activer"}
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="supprimer(${u.id})"><i class="bi bi-trash"></i></button>
+      </td>
+    </tr>`;
+  }
+
+  async function charger() {
+    try {
+      clearError();
+      const liste = await api("/utilisateurs");
+      document.getElementById("corpsTable").innerHTML =
+        liste.length ? liste.map(rendreLigne).join("") : '<tr><td colspan="6" class="text-center text-muted py-3">Aucun utilisateur.</td></tr>';
+    } catch (err) {
+      showError(err.message || "Accès refusé : cette page est réservée aux administrateurs.");
+    }
+  }
+
+  async function changerStatut(id, actif) {
+    try {
+      await api("/utilisateurs/" + id + "/statut?actif=" + actif, { method: "PUT" });
+      showSuccess("Statut mis à jour.");
+      charger();
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  async function supprimer(id) {
+    if (!confirm("Supprimer cet utilisateur ?")) return;
+    try {
+      await api("/utilisateurs/" + id, { method: "DELETE" });
+      showSuccess("Utilisateur supprimé.");
+      charger();
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  document.getElementById("formUtilisateur").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearError();
+    const corps = {
+      nom: document.getElementById("nom").value.trim(),
+      nomUtilisateur: document.getElementById("nomUtilisateur").value.trim(),
+      motDePasse: document.getElementById("motDePasse").value,
+      role: document.getElementById("role").value,
+    };
+    try {
+      await api("/utilisateurs", { method: "POST", body: JSON.stringify(corps) });
+      showSuccess("Utilisateur créé.");
+      document.getElementById("formUtilisateur").reset();
+      charger();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  charger();
+</script>
+</body>
+</html>

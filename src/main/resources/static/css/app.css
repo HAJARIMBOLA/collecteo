@@ -1,0 +1,149 @@
+:root {
+  --collecteo-primary: #1c6b4f;
+  --collecteo-primary-dark: #14503a;
+  --collecteo-bg: #f4f6f5;
+}
+
+body {
+  background: var(--collecteo-bg);
+}
+
+/* ---- Barre latérale ---- */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 240px;
+  background: var(--collecteo-primary-dark);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+  overflow-y: auto;
+}
+
+.sidebar-brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 0 1.25rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.sidebar-user {
+  padding: 0 1.25rem 1rem;
+  font-size: .85rem;
+  opacity: .85;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  border-bottom: 1px solid rgba(255,255,255,.15);
+  margin-bottom: .5rem;
+}
+
+.sidebar-nav {
+  flex: 1;
+}
+
+.sidebar-nav .nav-link {
+  color: rgba(255,255,255,.8);
+  padding: .55rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  border-left: 3px solid transparent;
+}
+
+.sidebar-nav .nav-link:hover {
+  background: rgba(255,255,255,.08);
+  color: #fff;
+}
+
+.sidebar-nav .nav-link.active {
+  background: rgba(255,255,255,.12);
+  border-left-color: #7fd8b0;
+  color: #fff;
+  font-weight: 600;
+}
+
+.sidebar-logout {
+  margin: .75rem 1.25rem 0;
+}
+
+/* ---- Contenu principal ---- */
+.content {
+  margin-left: 240px;
+  padding: 1.75rem 2rem 3rem;
+}
+
+.page-title {
+  font-weight: 700;
+  color: var(--collecteo-primary-dark);
+  margin-bottom: 1.25rem;
+}
+
+.kpi-card {
+  border: none;
+  border-radius: .75rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+.kpi-card .kpi-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.kpi-card .kpi-label {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  opacity: .7;
+}
+
+.card-section {
+  border: none;
+  border-radius: .75rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  margin-bottom: 1.5rem;
+}
+
+.table-collecteo thead {
+  background: #eef4f1;
+}
+
+.btn-collecteo {
+  background: var(--collecteo-primary);
+  border-color: var(--collecteo-primary);
+  color: #fff;
+}
+
+.btn-collecteo:hover {
+  background: var(--collecteo-primary-dark);
+  border-color: var(--collecteo-primary-dark);
+  color: #fff;
+}
+
+/* ---- Page de connexion ---- */
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--collecteo-primary-dark), var(--collecteo-primary));
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  border: none;
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(-100%); transition: transform .2s; }
+  .sidebar.open { transform: translateX(0); }
+  .content { margin-left: 0; }
+}

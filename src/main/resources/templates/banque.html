@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Banque')}"></head>
+<body>
+<div th:replace="~{fragments :: sidebar('banque')}"></div>
+
+<main class="content">
+  <h3 class="page-title"><i class="bi bi-bank"></i> Banque</h3>
+  <div id="errorBox" class="alert alert-danger d-none"></div>
+  <div id="successBox" class="alert alert-success d-none"></div>
+
+  <div class="row g-3" id="cartesKpi"></div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-lg-4">
+      <div class="card card-section">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle"></i> Nouveau compte</h6>
+          <form id="formCompte">
+            <div class="mb-2">
+              <label class="form-label">Nom de la banque *</label>
+              <input type="text" class="form-control" id="nomBanque" required/>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Numéro de compte</label>
+              <input type="text" class="form-control" id="numeroCompte"/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Solde initial</label>
+              <input type="number" step="0.01" min="0" class="form-control" id="soldeInitial" value="0"/>
+            </div>
+            <button type="submit" class="btn btn-collecteo w-100">Créer le compte</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card card-section">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3"><i class="bi bi-arrow-left-right"></i> Nouvelle transaction</h6>
+          <form id="formTransaction">
+            <div class="mb-2">
+              <label class="form-label">Compte *</label>
+              <select class="form-select" id="compteBancaireId" required></select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Type *</label>
+              <select class="form-select" id="type" required>
+                <option value="ENTREE">Dépôt / entrée</option>
+                <option value="SORTIE">Retrait / sortie</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Montant *</label>
+              <input type="number" step="0.01" min="0.01" class="form-control" id="montant" required/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Description</label>
+              <input type="text" class="form-control" id="description"/>
+            </div>
+            <button type="submit" class="btn btn-collecteo w-100">Enregistrer</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card card-section">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3">Comptes bancaires</h6>
+          <table class="table table-hover table-collecteo align-middle mb-4">
+            <thead><tr><th>Banque</th><th>Numéro</th><th class="text-end">Solde</th><th class="text-end">Détails</th></tr></thead>
+            <tbody id="corpsComptes"></tbody>
+          </table>
+
+          <h6 class="fw-bold mb-3">Transactions <span id="titreCompteSelectionne" class="text-muted small"></span></h6>
+          <table class="table table-hover table-collecteo align-middle">
+            <thead><tr><th>Date</th><th>Type</th><th class="text-end">Montant</th><th>Description</th></tr></thead>
+            <tbody id="corpsTransactions">
+              <tr><td colspan="4" class="text-center text-muted py-3">Cliquez sur un compte pour voir ses transactions.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div th:replace="~{fragments :: scripts}"></div>
+<script>
+  requireAuth();
+  let comptes = [];
+
+  function rendreLigneCompte(c) {
+    return `<tr>
+      <td>${escapeHtml(c.nomBanque)}</td>
+      <td>${escapeHtml(c.numeroCompte || "—")}</td>
+      <td class="text-end fw-semibold">${formatMontant(c.solde)}</td>
+      <td class="text-end"><button class="btn btn-sm btn-outline-secondary" onclick="voirTransactions(${c.id}, '${escapeHtml(c.nomBanque)}')"><i class="bi bi-list-ul"></i> Voir</button></td>
+    </tr>`;
+  }
+
+  function rendreLigneTransaction(t) {
+    const couleur = t.type === "ENTREE" ? "success" : "danger";
+    const signe = t.type === "ENTREE" ? "+" : "−";
+    return `<tr>
+      <td>${formatDate(t.date)}</td>
+      <td><span class="badge text-bg-${couleur}">${t.type === "ENTREE" ? "Entrée" : "Sortie"}</span></td>
+      <td class="text-end text-${couleur} fw-semibold">${signe} ${formatMontant(t.montant)}</td>
+      <td>${escapeHtml(t.description || "—")}</td>
+    </tr>`;
+  }
+
+  async function chargerComptes() {
+    comptes = await api("/banque/comptes");
+    document.getElementById("compteBancaireId").innerHTML =
+      comptes.map((c) => `<option value="${c.id}">${escapeHtml(c.nomBanque)}</option>`).join("");
+    document.getElementById("corpsComptes").innerHTML =
+      comptes.length ? comptes.map(rendreLigneCompte).join("") : '<tr><td colspan="4" class="text-center text-muted py-3">Aucun compte.</td></tr>';
+  }
+
+  async function charger() {
+    try {
+      clearError();
+      const [soldeTotal] = await Promise.all([api("/banque/solde-total")]);
+      await chargerComptes();
+      document.getElementById("cartesKpi").innerHTML = `
+        <div class="col-sm-6 col-lg-3">
+          <div class="card kpi-card"><div class="card-body">
+            <div class="kpi-label">Solde total banques</div><div class="kpi-value">${formatMontant(soldeTotal)}</div>
+          </div></div>
+        </div>`;
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  async function voirTransactions(id, nomBanque) {
+    try {
+      const liste = await api("/banque/comptes/" + id + "/transactions");
+      const tri = liste.sort((a, b) => new Date(b.date) - new Date(a.date));
+      document.getElementById("titreCompteSelectionne").textContent = "— " + nomBanque;
+      document.getElementById("corpsTransactions").innerHTML =
+        tri.length ? tri.map(rendreLigneTransaction).join("") : '<tr><td colspan="4" class="text-center text-muted py-3">Aucune transaction.</td></tr>';
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  document.getElementById("formCompte").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearError();
+    const corps = {
+      nomBanque: document.getElementById("nomBanque").value.trim(),
+      numeroCompte: document.getElementById("numeroCompte").value.trim(),
+      soldeInitial: Number(document.getElementById("soldeInitial").value || 0),
+    };
+    try {
+      await api("/banque/comptes", { method: "POST", body: JSON.stringify(corps) });
+      showSuccess("Compte créé.");
+      document.getElementById("formCompte").reset();
+      charger();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  document.getElementById("formTransaction").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearError();
+    const corps = {
+      compteBancaireId: Number(document.getElementById("compteBancaireId").value),
+      type: document.getElementById("type").value,
+      montant: Number(document.getElementById("montant").value),
+      description: document.getElementById("description").value.trim(),
+    };
+    try {
+      await api("/banque/transactions", { method: "POST", body: JSON.stringify(corps) });
+      showSuccess("Transaction enregistrée.");
+      document.getElementById("formTransaction").reset();
+      charger();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  charger();
+</script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Connexion')}"></head>
+<body>
+
+<div class="login-wrapper">
+  <div class="card login-card">
+    <div class="card-body p-4">
+      <div class="text-center mb-4">
+        <i class="bi bi-basket3-fill" style="font-size:2.5rem;color:var(--collecteo-primary);"></i>
+        <h4 class="mt-2 mb-0 fw-bold">Collecteo</h4>
+        <small class="text-muted">Connectez-vous à votre espace</small>
+      </div>
+
+      <div id="errorBox" class="alert alert-danger d-none"></div>
+
+      <form id="formLogin">
+        <div class="mb-3">
+          <label class="form-label">Nom d'utilisateur</label>
+          <input type="text" class="form-control" id="nomUtilisateur" required autofocus/>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Mot de passe</label>
+          <input type="password" class="form-control" id="motDePasse" required/>
+        </div>
+        <button type="submit" class="btn btn-collecteo w-100" id="btnLogin">
+          <span class="spinner-border spinner-border-sm d-none" id="spinnerLogin"></span>
+          Se connecter
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div th:replace="~{fragments :: scripts}"></div>
+<script>
+  // Si déjà connecté, on file directement au tableau de bord.
+  if (getToken()) window.location.href = "/dashboard";
+
+  document.getElementById("formLogin").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearError();
+    const btn = document.getElementById("btnLogin");
+    const spinner = document.getElementById("spinnerLogin");
+    btn.disabled = true;
+    spinner.classList.remove("d-none");
+    try {
+      const reponse = await api("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          nomUtilisateur: document.getElementById("nomUtilisateur").value.trim(),
+          motDePasse: document.getElementById("motDePasse").value,
+        }),
+      });
+      setSession(reponse.token, {
+        nomUtilisateur: reponse.nomUtilisateur,
+        nom: reponse.nom,
+        role: reponse.role,
+      });
+      window.location.href = "/dashboard";
+    } catch (err) {
+      showError(err.message || "Identifiants incorrects.");
+    } finally {
+      btn.disabled = false;
+      spinner.classList.add("d-none");
+    }
+  });
+</script>
+</body>
+</html>

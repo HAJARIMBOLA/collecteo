@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Clients')}"></head>
+<body>
+<div th:replace="~{fragments :: sidebar('clients')}"></div>
+
+<main class="content">
+  <h3 class="page-title"><i class="bi bi-people"></i> Clients</h3>
+  <div id="errorBox" class="alert alert-danger d-none"></div>
+  <div id="successBox" class="alert alert-success d-none"></div>
+
+  <div class="card card-section">
+    <div class="card-body">
+      <form class="row g-2 align-items-end" id="formRecherche">
+        <div class="col-md-6">
+          <label class="form-label">Rechercher (nom, téléphone, adresse)</label>
+          <input type="text" class="form-control" id="motCle" placeholder="Ex : Rasoa"/>
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-collecteo" type="submit"><i class="bi bi-search"></i> Rechercher</button>
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-outline-secondary" type="button" onclick="reinitialiser()">Réinitialiser</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card card-section">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3" id="titreFormulaire"><i class="bi bi-plus-circle"></i> Nouveau client</h6>
+          <form id="formClient">
+            <input type="hidden" id="clientId"/>
+            <div class="mb-2">
+              <label class="form-label">Nom *</label>
+              <input type="text" class="form-control" id="nom" required/>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Téléphone</label>
+              <input type="text" class="form-control" id="telephone"/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Adresse</label>
+              <input type="text" class="form-control" id="adresse"/>
+            </div>
+            <button type="submit" class="btn btn-collecteo w-100">Enregistrer</button>
+            <button type="button" class="btn btn-outline-secondary w-100 mt-2 d-none" id="btnAnnuler" onclick="annulerEdition()">Annuler la modification</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card card-section">
+        <div class="card-body">
+          <table class="table table-hover table-collecteo align-middle">
+            <thead>
+              <tr><th>Nom</th><th>Téléphone</th><th>Adresse</th><th>Depuis le</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody id="corpsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div th:replace="~{fragments :: scripts}"></div>
+<script>
+  requireAuth();
+
+  function rendreLigne(c) {
+    return `<tr>
+      <td>${escapeHtml(c.nom)}</td>
+      <td>${escapeHtml(c.telephone || "—")}</td>
+      <td>${escapeHtml(c.adresse || "—")}</td>
+      <td>${formatDateSeule(c.dateCreation)}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-secondary" onclick='editer(${JSON.stringify(c)})'><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="supprimer(${c.id})"><i class="bi bi-trash"></i></button>
+      </td>
+    </tr>`;
+  }
+
+  async function charger(motCle) {
+    try {
+      clearError();
+      const liste = motCle
+        ? await api("/clients/recherche?motCle=" + encodeURIComponent(motCle))
+        : await api("/clients");
+      document.getElementById("corpsTable").innerHTML =
+        liste.length ? liste.map(rendreLigne).join("") : '<tr><td colspan="5" class="text-center text-muted py-3">Aucun client.</td></tr>';
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  function editer(c) {
+    document.getElementById("clientId").value = c.id;
+    document.getElementById("nom").value = c.nom;
+    document.getElementById("telephone").value = c.telephone || "";
+    document.getElementById("adresse").value = c.adresse || "";
+    document.getElementById("titreFormulaire").innerHTML = '<i class="bi bi-pencil"></i> Modifier le client';
+    document.getElementById("btnAnnuler").classList.remove("d-none");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function annulerEdition() {
+    document.getElementById("formClient").reset();
+    document.getElementById("clientId").value = "";
+    document.getElementById("titreFormulaire").innerHTML = '<i class="bi bi-plus-circle"></i> Nouveau client';
+    document.getElementById("btnAnnuler").classList.add("d-none");
+  }
+
+  async function supprimer(id) {
+    if (!confirm("Supprimer ce client ?")) return;
+    try {
+      await api("/clients/" + id, { method: "DELETE" });
+      showSuccess("Client supprimé.");
+      charger();
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  function reinitialiser() {
+    document.getElementById("motCle").value = "";
+    charger();
+  }
+
+  document.getElementById("formRecherche").addEventListener("submit", (e) => {
+    e.preventDefault();
+    charger(document.getElementById("motCle").value.trim());
+  });
+
+  document.getElementById("formClient").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearError();
+    const id = document.getElementById("clientId").value;
+    const corps = {
+      nom: document.getElementById("nom").value.trim(),
+      telephone: document.getElementById("telephone").value.trim(),
+      adresse: document.getElementById("adresse").value.trim(),
+    };
+    try {
+      if (id) {
+        await api("/clients/" + id, { method: "PUT", body: JSON.stringify(corps) });
+        showSuccess("Client modifié.");
+      } else {
+        await api("/clients", { method: "POST", body: JSON.stringify(corps) });
+        showSuccess("Client créé.");
+      }
+      annulerEdition();
+      charger();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  charger();
+</script>
+</body>
+</html>
