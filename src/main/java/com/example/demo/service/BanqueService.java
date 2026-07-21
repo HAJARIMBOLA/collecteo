@@ -55,35 +55,25 @@ public class BanqueService {
     return banqueTransactionRepository.findByCompteBancaireIdOrderByDateDesc(compteBancaireId);
   }
 
-  /** Enregistre un dépôt ou un retrait et met à jour le solde du compte en conséquence. */
+  /** Enregistre un dépôt ou un retrait initié directement par l'utilisateur via l'API. */
   public BanqueTransaction enregistrerTransaction(BanqueTransactionRequest requete) {
     CompteBancaire compte = trouverCompteParId(requete.getCompteBancaireId());
+    return appliquerMouvement(
+        compte, requete.getType(), requete.getMontant(), requete.getDescription());
+  }
 
-    if (requete.getType() == TypeTransactionCaisse.SORTIE
-        && compte.getSolde().compareTo(requete.getMontant()) < 0) {
+  /**
+   * Crédite ou débite un compte et enregistre le mouvement correspondant. Utilisé aussi bien pour
+   * les dépôts/retraits manuels (via l'API) que pour les mouvements automatiques déclenchés par
+   * PretBancaireService (décaissement/remboursement de prêt). Refuse toujours une SORTIE si le
+   * solde du compte est insuffisant, quel que soit l'appelant.
+   */
+  BanqueTransaction appliquerMouvement(
+      CompteBancaire compte, TypeTransactionCaisse type, BigDecimal montant, String description) {
+    if (type == TypeTransactionCaisse.SORTIE && compte.getSolde().compareTo(montant) < 0) {
       throw new BusinessException("Solde insuffisant sur le compte " + compte.getNomBanque());
     }
 
-    BigDecimal nouveauSolde =
-        requete.getType() == TypeTransactionCaisse.ENTREE
-            ? compte.getSolde().add(requete.getMontant())
-            : compte.getSolde().subtract(requete.getMontant());
-    compte.setSolde(nouveauSolde);
-    compteBancaireRepository.save(compte);
-
-    BanqueTransaction transaction =
-        BanqueTransaction.builder()
-            .compteBancaire(compte)
-            .type(requete.getType())
-            .montant(requete.getMontant())
-            .description(requete.getDescription())
-            .build();
-    return banqueTransactionRepository.save(transaction);
-  }
-
-  /** Utilisé en interne par PretBancaireService pour créditer/débiter un compte automatiquement. */
-  void appliquerMouvement(
-      CompteBancaire compte, TypeTransactionCaisse type, BigDecimal montant, String description) {
     BigDecimal nouveauSolde =
         type == TypeTransactionCaisse.ENTREE
             ? compte.getSolde().add(montant)
@@ -98,6 +88,6 @@ public class BanqueService {
             .montant(montant)
             .description(description)
             .build();
-    banqueTransactionRepository.save(transaction);
+    return banqueTransactionRepository.save(transaction);
   }
 }
