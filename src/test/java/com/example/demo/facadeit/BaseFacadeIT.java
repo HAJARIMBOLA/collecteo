@@ -1,5 +1,6 @@
 package com.example.demo.facadeit;
 
+import com.example.demo.conf.FacadeIT;
 import com.example.demo.dto.AuthRequest;
 import com.example.demo.dto.AuthResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,7 +37,7 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Import(BaseFacadeIT.ClientHttpConfig.class)
-public abstract class BaseFacadeIT {
+public abstract class BaseFacadeIT extends FacadeIT {
   @LocalServerPort protected int port;
 
   @Autowired protected TestRestTemplate restTemplate;
@@ -56,7 +57,7 @@ public abstract class BaseFacadeIT {
     @Bean
     RestTemplateBuilder restTemplateBuilder() {
       return new RestTemplateBuilder()
-          .requestFactory(() -> new HttpComponentsClientHttpRequestFactory());
+              .requestFactory(() -> new HttpComponentsClientHttpRequestFactory());
     }
   }
 
@@ -75,7 +76,7 @@ public abstract class BaseFacadeIT {
     requete.setMotDePasse("admin123");
 
     ResponseEntity<AuthResponse> reponse =
-        restTemplate.postForEntity(baseUrl() + "/auth/login", requete, AuthResponse.class);
+            restTemplate.postForEntity(baseUrl() + "/auth/login", requete, AuthResponse.class);
 
     this.token = reponse.getBody().getToken();
   }
@@ -89,7 +90,7 @@ public abstract class BaseFacadeIT {
   }
 
   protected <T> ResponseEntity<T> postAuthentifie(
-      String chemin, Object corps, Class<T> typeReponse) {
+          String chemin, Object corps, Class<T> typeReponse) {
     HttpEntity<Object> requete = new HttpEntity<>(corps, enTetesAuthentifiees());
     return restTemplate.exchange(baseUrl() + chemin, HttpMethod.POST, requete, typeReponse);
   }
