@@ -6,12 +6,15 @@ spring:
     name: collecteo-backend
 
   datasource:
-    # Valeurs par défaut codées en dur pour le développement local (pas besoin de
-    # configurer des variables d'environnement dans IntelliJ). Surchargeables via
-    # DB_URL / DB_USERNAME / DB_PASSWORD si besoin (ex. en production).
-    url: ${DB_URL:jdbc:postgresql://ep-bitter-smoke-asyw3792.c-4.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require}
-    username: ${DB_USERNAME:neondb_owner}
-    password: ${DB_PASSWORD:npg_dF8nIgH2lbXG}
+    # OBLIGATOIRE : DB_URL / DB_USERNAME / DB_PASSWORD doivent être définies en
+    # variables d'environnement (jamais de valeur par défaut ici : un secret
+    # codé en dur finit toujours par être committé sur Git). Voir .env.example
+    # pour le format attendu, et le README pour comment les configurer dans
+    # IntelliJ (Edit Configurations > Environment variables) ou via un fichier
+    # .env local non versionné (plugin EnvFile).
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -19,7 +22,7 @@ spring:
       # update = crée les tables manquantes et ajoute les colonnes manquantes au démarrage,
       # sans jamais supprimer de données existantes.
       ddl-auto: update
-    show-sql: true
+    show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
         format_sql: true
@@ -28,4 +31,4 @@ spring:
 
 logging:
   level:
-    org.hibernate.SQL: debug
+    org.hibernate.SQL: ${HIBERNATE_SQL_LOG_LEVEL:warn}
