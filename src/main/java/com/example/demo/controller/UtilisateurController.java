@@ -1,7 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.UtilisateurRequest;
-import com.example.demo.entity.Utilisateur;
+import com.example.demo.dto.UtilisateurResponse;
 import com.example.demo.service.UtilisateurService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -18,24 +18,24 @@ public class UtilisateurController {
   private final UtilisateurService utilisateurService;
 
   @GetMapping
-  public List<Utilisateur> listerTous() {
-    return utilisateurService.listerTous();
+  public List<UtilisateurResponse> listerTous() {
+    return utilisateurService.listerTous().stream().map(UtilisateurResponse::depuis).toList();
   }
 
   @GetMapping("/{id}")
-  public Utilisateur trouverParId(@PathVariable Long id) {
-    return utilisateurService.trouverParId(id);
+  public UtilisateurResponse trouverParId(@PathVariable Long id) {
+    return UtilisateurResponse.depuis(utilisateurService.trouverParId(id));
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public Utilisateur creer(@Valid @RequestBody UtilisateurRequest requete) {
-    return utilisateurService.creer(requete);
+  public UtilisateurResponse creer(@Valid @RequestBody UtilisateurRequest requete) {
+    return UtilisateurResponse.depuis(utilisateurService.creer(requete));
   }
 
   @PutMapping("/{id}/statut")
-  public Utilisateur changerStatut(@PathVariable Long id, @RequestParam boolean actif) {
-    return utilisateurService.changerStatut(id, actif);
+  public UtilisateurResponse changerStatut(@PathVariable Long id, @RequestParam boolean actif) {
+    return UtilisateurResponse.depuis(utilisateurService.changerStatut(id, actif));
   }
 
   @DeleteMapping("/{id}")
