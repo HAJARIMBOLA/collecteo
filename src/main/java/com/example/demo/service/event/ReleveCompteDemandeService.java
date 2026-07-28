@@ -22,8 +22,8 @@ import org.springframework.stereotype.Service;
 /**
  * Consomme {@link ReleveCompteDemande} : génère le relevé PDF puis l'envoie en pièce jointe.
  *
- * <p>Emplacement et nom imposés par Poja : le consommateur doit être dans
- * {@code your.package.name.service.event} et s'appeler {@code {NomEvenement}Service}.
+ * <p>Emplacement et nom imposés par Poja : le consommateur doit être dans {@code
+ * your.package.name.service.event} et s'appeler {@code {NomEvenement}Service}.
  */
 @Service
 @RequiredArgsConstructor
@@ -67,12 +67,12 @@ public class ReleveCompteDemandeService implements Consumer<ReleveCompteDemande>
 
   private String corpsHtml(ReleveCompteDemande demande) {
     return """
-        <p>Bonjour,</p>
-        <p>Voici le relevé de compte demandé le %s%s.</p>
-        <p>Solde actuel de la caisse : <strong>%s</strong></p>
-        <p>Le détail complet se trouve dans le PDF joint.</p>
-        <p>— Collecteo</p>
-        """
+           <p>Bonjour,</p>
+           <p>Voici le relevé de compte demandé le %s%s.</p>
+           <p>Solde actuel de la caisse : <strong>%s</strong></p>
+           <p>Le détail complet se trouve dans le PDF joint.</p>
+           <p>— Collecteo</p>
+           """
         .formatted(
             LocalDate.now().format(FORMAT_DATE),
             demande.getDemandePar() == null ? "" : " par " + demande.getDemandePar(),

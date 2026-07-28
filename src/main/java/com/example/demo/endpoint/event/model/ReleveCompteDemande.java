@@ -15,8 +15,8 @@ import lombok.ToString;
  * com.example.demo.service.event.ReleveCompteDemandeService} qui génère le PDF puis l'envoie en
  * pièce jointe.
  *
- * <p>Emplacement imposé par Poja : les classes d'événement doivent être dans le package
- * {@code your.package.name.endpoint.event.model}.
+ * <p>Emplacement imposé par Poja : les classes d'événement doivent être dans le package {@code
+ * your.package.name.endpoint.event.model}.
  */
 @NoArgsConstructor
 @AllArgsConstructor
